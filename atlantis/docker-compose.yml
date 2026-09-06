@@ -1,0 +1,31 @@
+# Local Atlantis server, tunneled to GitHub via ngrok. Run with:
+#   docker compose --env-file .env up
+# (copy .env.example to .env and fill in real values first — see README.md)
+
+services:
+  atlantis:
+    image: ghcr.io/runatlantis/atlantis:latest
+    ports:
+      - "4141:4141"
+    environment:
+      ATLANTIS_GH_USER: ${GH_USER}
+      ATLANTIS_GH_TOKEN: ${GH_TOKEN}
+      ATLANTIS_GH_WEBHOOK_SECRET: ${GH_WEBHOOK_SECRET}
+      ATLANTIS_REPO_ALLOWLIST: ${GH_REPO_ALLOWLIST}
+      ATLANTIS_ATLANTIS_URL: ${ATLANTIS_URL}
+      ATLANTIS_REPO_CONFIG: /etc/atlantis/repos.yaml
+      ATLANTIS_PORT: "4141"
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - ./repos.yaml:/etc/atlantis/repos.yaml:ro
+      - atlantis-data:/atlantis-data
+      # Atlantis needs the same AWS credentials your local `terraform apply`
+      # used, so it can genuinely run plan/apply against your account.
+      # Mounting your existing AWS config read-only is far simpler for a
+      # POC than re-entering keys as env vars, and never leaves them in
+      # docker-compose.yml or shell history.
+      - ~/.aws:/home/atlantis/.aws:ro
+
+volumes:
+  atlantis-data:

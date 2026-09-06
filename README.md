@@ -30,7 +30,7 @@ environments/dev/   Root module for the dev environment (S3 backend, calls modul
 modules/vpc/        VPC, public subnets only, no NAT
 modules/eks/        EKS cluster + managed node group
 modules/irsa/       IAM Roles for Service Accounts (generic, reusable)
-atlantis/            Local Atlantis (Docker + ngrok) config   [Phase 3]
+atlantis/            Local Atlantis (Docker + ngrok) config
 scripts/             Helper + teardown scripts
 ```
 
@@ -44,7 +44,8 @@ Two sibling repos complete the project:
 |---|---|---|
 | 0 | AWS/GitHub setup, budget alert | done |
 | 1 | Terraform backend + VPC | done |
-| 2 | EKS cluster + IRSA | this session |
+| 2 | EKS cluster + IRSA | done |
+| 3 | Atlantis (local, PR automation, locking) | this session |
 | 3 | Atlantis (local, PR automation, locking) | — |
 | 4 | GitHub Actions CI (OIDC, build, push) | — |
 | 5 | Helm chart for the app | — |
@@ -150,3 +151,95 @@ project through Phase 8.
 To tear down Phase 1's VPC only (before Phase 2 existed), the equivalent was
 `terraform destroy` directly — now that EKS depends on the VPC, always destroy
 through `environments/dev` as a whole.
+
+## Phase 3 — Atlantis (local Docker + ngrok, PR automation, locking)
+
+Atlantis replaces "run `terraform apply` from your laptop" with "open a PR,
+Atlantis comments the plan, a human approves, Atlantis applies." It runs
+**outside** the EKS cluster it manages (avoids the chicken-and-egg problem of
+using the cluster to manage the cluster itself) — here, as a local Docker
+container tunneled to GitHub via ngrok.
+
+### 1. GitHub side — PAT, webhook, branch protection
+
+1. **Personal access token**: GitHub → Settings → Developer settings →
+   Personal access tokens → Tokens (classic) → generate with the `repo`
+   scope. This is what Atlantis uses to comment on PRs and set status checks.
+2. **Webhook secret**: generate one locally: `openssl rand -hex 20` — save it,
+   you'll need it in two places (Atlantis's `.env` and the GitHub webhook).
+3. **Webhook**: on `platform-infra` → Settings → Webhooks → Add webhook
+   - Payload URL: `https://<your-ngrok-domain>.ngrok-free.app/events`
+   - Content type: `application/json`
+   - Secret: the value from step 2
+   - Events: "Pull requests" and "Issue comments" (that second one is how
+     Atlantis hears `atlantis plan` / `atlantis apply` comments)
+4. **Branch protection**: Settings → Branches → add a rule for `main`
+   - Require a pull request before merging, **1 required approval**
+   - Dismiss stale approvals on new commits
+   - Require status checks to pass: search for and add `atlantis/plan`
+     (it won't appear until Atlantis has commented on at least one PR —
+     come back to tick this after your first test PR)
+
+Replace `YOUR_GITHUB_USERNAME` in `atlantis/repos.yaml`, `atlantis/.env`
+(from the example below), and `CODEOWNERS` with your actual username first.
+
+### 2. Run Atlantis locally
+
+```bash
+cd atlantis
+cp .env.example .env
+# edit .env: GH_USER, GH_TOKEN, GH_WEBHOOK_SECRET, GH_REPO_ALLOWLIST,
+# ATLANTIS_URL (your ngrok static domain)
+
+docker compose --env-file .env up
+```
+
+In a second terminal:
+
+```bash
+ngrok http 4141 --url=<your-static-domain>.ngrok-free.app
+```
+
+Leave both running while you work through PRs below.
+
+**If you use AWS SSO**, the container needs credentials that don't expire
+mid-session — `aws configure export-credentials --profile <name>` will print
+a temporary access key/secret/session token; put those directly in `.env` as
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` instead of
+relying on the mounted `~/.aws` (SSO's cached browser token doesn't refresh
+from inside a container).
+
+### 3. The demo script
+
+1. **Open a PR** changing something small in `environments/dev` (e.g. bump
+   `node_desired_size`). Atlantis autoplans and comments the diff within a
+   few seconds — that's the webhook working.
+2. **Comment `atlantis apply` before approving.** It's rejected: `apply_requirements: [approved, mergeable]`
+   in `repos.yaml` is the thing doing that. This is the mechanic you asked
+   about — no plan gets applied without a human's approval showing on GitHub.
+3. **Approve the PR** (a second GitHub account, or the review UI on your own
+   PR won't let you self-approve — use a throwaway second account, or for a
+   true solo test, note that self-approval is disabled by GitHub by design).
+4. **Comment `atlantis apply`** again — now it runs, comments the result,
+   sets the `atlantis/apply` check.
+5. **Merge the PR.**
+
+### 4. The locking demo (what you specifically asked about)
+
+Open **two PRs** that both touch `environments/dev` (e.g. PR A bumps
+`node_desired_size`, PR B bumps a tag) at the same time:
+
+- PR A's autoplan runs first and takes a **lock on that project/workspace**.
+- PR B's autoplan comment will show: *"This project is currently locked by an
+  unapplied plan from pull request #A. To continue, delete the lock from
+  #A or apply the plan from #A."*
+- This is Atlantis preventing two applies from racing against the same
+  state file — the exact failure mode a lock exists to stop.
+- Merge or close PR A (or comment `atlantis unlock` on it) — PR B's lock
+  clears and it can plan/apply normally.
+
+### Cost note
+
+Atlantis itself is free (your own laptop, your own Docker). The only cost
+this phase can trigger is if a plan you apply changes billable AWS resources
+— same rules as Phase 1/2.

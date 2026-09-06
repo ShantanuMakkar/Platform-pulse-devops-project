@@ -1,0 +1,7 @@
+# Requests review on the module directory a PR touches — simulates how a
+# real platform team splits ownership, even solo: it's the same mechanic,
+# just with one reviewer (you) covering every path for now.
+/modules/eks/    @ShantanuMakkar
+/modules/vpc/    @ShantanuMakkar
+/modules/irsa/   @ShantanuMakkar
+/environments/   @ShantanuMakkar
