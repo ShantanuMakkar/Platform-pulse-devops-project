@@ -15,7 +15,6 @@ services:
       ATLANTIS_ATLANTIS_URL: ${ATLANTIS_URL}
       ATLANTIS_REPO_CONFIG: /etc/atlantis/repos.yaml
       ATLANTIS_PORT: "4141"
-      ATLANTIS_DATA_DIR: /atlantis-data
       AWS_PROFILE: ${AWS_PROFILE:-default}
       AWS_REGION: ${AWS_REGION:-us-east-1}
     volumes:
@@ -29,4 +28,6 @@ services:
       - ~/.aws:/home/atlantis/.aws:ro
 
 volumes:
-  atlantis-data:
+  - ./repos.yaml:/etc/atlantis/repos.yaml:ro
+  - atlantis-data:/home/atlantis/.atlantis
+  - ~/.aws:/home/atlantis/.aws:ro
