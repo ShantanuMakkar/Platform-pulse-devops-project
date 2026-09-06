@@ -40,7 +40,7 @@ variable "node_min_size" {
 
 variable "node_max_size" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "admin_principal_arns" {
