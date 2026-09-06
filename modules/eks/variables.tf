@@ -30,7 +30,7 @@ variable "node_capacity_type" {
 
 variable "node_desired_size" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "node_min_size" {

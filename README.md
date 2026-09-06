@@ -214,12 +214,12 @@ at `localhost:4141` — if you instead run `ngrok http 80` (a different port),
 GitHub's webhook deliveries will fail silently against nothing listening
 there.
 
-**If you use AWS SSO**, the container needs credentials that don't expire
-mid-session — `aws configure export-credentials --profile <name>` will print
-a temporary access key/secret/session token; put those directly in `.env` as
-`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` instead of
-relying on the mounted `~/.aws` (SSO's cached browser token doesn't refresh
-from inside a container).
+**If you use AWS SSO**, run `./refresh-creds.sh [profile-name]` (defaults to
+`dev`) once at the start of each session, before `docker compose up`. It logs
+you in and writes short-lived static credentials straight into `.env` — the
+container never needs to do an SSO browser refresh itself, which it can't do.
+Restart the container afterward to pick up the new values. When these
+credentials expire (typically 8-12hrs), just rerun the script.
 
 ### 3. The demo script
 
@@ -254,4 +254,4 @@ Open **two PRs** that both touch `environments/dev` (e.g. PR A bumps
 
 Atlantis itself is free (your own laptop, your own Docker). The only cost
 this phase can trigger is if a plan you apply changes billable AWS resources
-— same rules as Phase 1/2..
+— same rules as Phase 1/2.
