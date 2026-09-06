@@ -4,6 +4,7 @@ projects:
   - name: dev
     dir: environments/dev
     workspace: default
+    workflow: dev
     # Autoplan whenever a PR touches this env's own files OR any shared
     # module it consumes — a module-only change wouldn't otherwise trigger
     # a plan in environments/dev, and that's exactly the PR that needs one.
@@ -12,3 +13,17 @@ projects:
         - "*.tf"
         - "../../modules/**/*.tf"
       enabled: true
+
+workflows:
+  # Atlantis always runs `terraform init -input=false` — unlike a human
+  # running it interactively, it can never fall back to a prompt for
+  # backend values. It needs backend.hcl handed to it explicitly here.
+  dev:
+    plan:
+      steps:
+        - init:
+            extra_args: ["-backend-config=backend.hcl"]
+        - plan
+    apply:
+      steps:
+        - apply

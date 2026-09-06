@@ -81,9 +81,9 @@ cd ..
 # Check your email and CONFIRM the SNS subscription — budget alerts won't
 # deliver until you do.
 
-# 2. Point the dev environment at that bucket, once:
-cp environments/dev/backend.hcl.example environments/dev/backend.hcl
-# edit backend.hcl: set bucket to the state_bucket_name output from step 1
+# 2. environments/dev/backend.hcl already has the bucket name set — only
+#    edit it if your state_bucket_name output from step 1 differs:
+#    environments/dev/backend.hcl
 
 # 3. Standard terraform commands from here on — backend.hcl means init
 #    never prompts you again:
@@ -160,9 +160,14 @@ Atlantis comments the plan, a human approves, Atlantis applies." It runs
 using the cluster to manage the cluster itself) — here, as a local Docker
 container tunneled to GitHub via ngrok.
 
-### 1. GitHub side — PAT, webhook, branch protection
+**Note on the backend:** unlike you running `terraform init` interactively,
+Atlantis always runs non-interactively (`-input=false`) and can never fall
+back to a prompt for missing backend values. `atlantis.yaml`'s custom `dev`
+workflow passes `-backend-config=backend.hcl` to `init` explicitly so Atlantis
+finds the same S3 bucket you do — this is already wired up, nothing to
+configure yourself.
 
-1. **Personal access token**: GitHub → Settings → Developer settings →
+### 1. GitHub side — PAT, webhook, branch protection1. **Personal access token**: GitHub → Settings → Developer settings →
    Personal access tokens → Tokens (classic) → generate with the `repo`
    scope. This is what Atlantis uses to comment on PRs and set status checks.
 2. **Webhook secret**: generate one locally: `openssl rand -hex 20` — save it,
@@ -180,16 +185,19 @@ container tunneled to GitHub via ngrok.
      (it won't appear until Atlantis has commented on at least one PR —
      come back to tick this after your first test PR)
 
-Replace `YOUR_GITHUB_USERNAME` in `atlantis/repos.yaml`, `atlantis/.env`
-(from the example below), and `CODEOWNERS` with your actual username first.
+Replace `YOUR_GITHUB_USERNAME` in `atlantis/repos.yaml` and `CODEOWNERS` with
+your actual username first (already done if you're working from your current
+repo).
 
 ### 2. Run Atlantis locally
 
+`atlantis/.env` already has your repo id and ngrok domain filled in — open it
+and replace just the two placeholders:
+
 ```bash
 cd atlantis
-cp .env.example .env
-# edit .env: GH_USER, GH_TOKEN, GH_WEBHOOK_SECRET, GH_REPO_ALLOWLIST,
-# ATLANTIS_URL (your ngrok static domain)
+# edit .env: set GH_TOKEN (your PAT) and GH_WEBHOOK_SECRET
+#            (output of: openssl rand -hex 20)
 
 docker compose --env-file .env up
 ```
@@ -246,4 +254,4 @@ Open **two PRs** that both touch `environments/dev` (e.g. PR A bumps
 
 Atlantis itself is free (your own laptop, your own Docker). The only cost
 this phase can trigger is if a plan you apply changes billable AWS resources
-— same rules as Phase 1/2..
+— same rules as Phase 1/2.
