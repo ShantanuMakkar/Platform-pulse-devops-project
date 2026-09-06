@@ -221,11 +221,19 @@ from inside a container).
 2. **Comment `atlantis apply` before approving.** It's rejected: `apply_requirements: [approved, mergeable]`
    in `repos.yaml` is the thing doing that. This is the mechanic you asked
    about — no plan gets applied without a human's approval showing on GitHub.
-3. **Approve the PR** (a second GitHub account, or the review UI on your own
-   PR won't let you self-approve — use a throwaway second account, or for a
-   true solo test, note that self-approval is disabled by GitHub by design).
-4. **Comment `atlantis apply`** again — now it runs, comments the result,
-   sets the `atlantis/apply` check.
+3. **Approve the PR.** GitHub will not let you approve your own PR — this
+   is a hard platform restriction, not a repo setting. If you have a second
+   GitHub account or a collaborator, this is the real approval-gate demo:
+   `apply_requirements: [approved, mergeable]` in `repos.yaml`, approval
+   required before `atlantis apply` is accepted.
+
+   Working solo, `apply_requirements` is set to `[mergeable]` only — you
+   can still demonstrate the *mergeable* half of the gate (a failing check
+   or unresolved conversation blocks apply the same way), just not the
+   human-approval half. Worth knowing for the real job: this is exactly
+   the setting you'd tighten back to `[approved, mergeable]` once there's
+   an actual team reviewing PRs.
+4. **Comment `atlantis apply`** — runs immediately now, no approval needed.
 5. **Merge the PR.**
 
 ### 4. The locking demo (what you specifically asked about)

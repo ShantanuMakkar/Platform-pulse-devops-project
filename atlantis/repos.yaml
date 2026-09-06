@@ -2,6 +2,6 @@
 # `atlantis apply` refuse to run until the PR is approved and mergeable.
 repos:
   - id: github.com/ShantanuMakkar/Platform-pulse-devops-project
-    apply_requirements: [approved, mergeable]
+    apply_requirements: [mergeable]
     allowed_overrides: [apply_requirements, workflow]
     allow_custom_workflows: true
