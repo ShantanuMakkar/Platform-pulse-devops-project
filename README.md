@@ -168,7 +168,7 @@ container tunneled to GitHub via ngrok.
 2. **Webhook secret**: generate one locally: `openssl rand -hex 20` — save it,
    you'll need it in two places (Atlantis's `.env` and the GitHub webhook).
 3. **Webhook**: on `platform-infra` → Settings → Webhooks → Add webhook
-   - Payload URL: `https://<your-ngrok-domain>.ngrok-free.app/events`
+   - Payload URL: `https://catalyst-monument-roving.ngrok-free.dev/events`
    - Content type: `application/json`
    - Secret: the value from step 2
    - Events: "Pull requests" and "Issue comments" (that second one is how
@@ -197,10 +197,14 @@ docker compose --env-file .env up
 In a second terminal:
 
 ```bash
-ngrok http 4141 --url=<your-static-domain>.ngrok-free.app
+ngrok http 4141 --url=https://catalyst-monument-roving.ngrok-free.dev
 ```
 
-Leave both running while you work through PRs below.
+Leave both running while you work through PRs below. Confirm the tunnel is
+actually up by checking ngrok's terminal output shows `Forwarding` pointing
+at `localhost:4141` — if you instead run `ngrok http 80` (a different port),
+GitHub's webhook deliveries will fail silently against nothing listening
+there.
 
 **If you use AWS SSO**, the container needs credentials that don't expire
 mid-session — `aws configure export-credentials --profile <name>` will print
