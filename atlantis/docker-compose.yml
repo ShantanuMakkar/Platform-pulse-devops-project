@@ -17,15 +17,15 @@ services:
       ATLANTIS_PORT: "4141"
       AWS_PROFILE: ${AWS_PROFILE:-default}
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     volumes:
       - ./repos.yaml:/etc/atlantis/repos.yaml:ro
-      - atlantis-data:/home/atlantis/.atlantis
+      - ~/.aws:/home/atlantis/.aws:ro
       # Atlantis needs the same AWS credentials your local `terraform apply`
       # used, so it can genuinely run plan/apply against your account.
       # Mounting your existing AWS config read-only is far simpler for a
       # POC than re-entering keys as env vars, and never leaves them in
       # docker-compose.yml or shell history.
-      - ~/.aws:/home/atlantis/.aws:ro
 
-volumes:
-  atlantis-data:
