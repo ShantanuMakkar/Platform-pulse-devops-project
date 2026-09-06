@@ -1,14 +1,22 @@
-# Repo-level Atlantis config — lives at repo root by convention.
 version: 3
 projects:
   - name: dev
     dir: environments/dev
     workspace: default
-    # Autoplan whenever a PR touches this env's own files OR any shared
-    # module it consumes — a module-only change wouldn't otherwise trigger
-    # a plan in environments/dev, and that's exactly the PR that needs one.
+    workflow: dev
     autoplan:
       when_modified:
         - "*.tf"
         - "../../modules/**/*.tf"
       enabled: true
+
+workflows:
+  dev:
+    plan:
+      steps:
+        - init:
+            extra_args: ["-backend-config=backend.hcl"]
+        - plan
+    apply:
+      steps:
+        - apply
