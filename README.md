@@ -246,4 +246,4 @@ Open **two PRs** that both touch `environments/dev` (e.g. PR A bumps
 
 Atlantis itself is free (your own laptop, your own Docker). The only cost
 this phase can trigger is if a plan you apply changes billable AWS resources
-— same rules as Phase 1/2.
+— same rules as Phase 1/2..
