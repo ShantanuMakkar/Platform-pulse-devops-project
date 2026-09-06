@@ -69,31 +69,31 @@ Two sibling repos complete the project:
 ## Phase 1 — bring up the backend + VPC
 
 ```bash
-# 1. Bootstrap: creates the state bucket + budget alert (uses local state, one-time)
+# 1. Bootstrap: creates the state bucket + budget alert (local state, one-time)
 cd bootstrap
 terraform init
 terraform apply \
   -var="state_bucket_name=tfstate-platform-pulse-<yourname>-<random4>" \
   -var="alert_email=you@example.com" \
   -var="aws_region=us-east-1"
+cd ..
 # Check your email and CONFIRM the SNS subscription — budget alerts won't
 # deliver until you do.
 
-# 2. Wire the dev environment to that bucket
-cd ../environments/dev
-terraform init \
-  -backend-config="bucket=tfstate-platform-pulse-<yourname>-<random4>" \
-  -backend-config="key=dev/terraform.tfstate" \
-  -backend-config="region=us-east-1" \
-  -backend-config="use_lockfile=true"
+# 2. Point the dev environment at that bucket, once:
+cp environments/dev/backend.hcl.example environments/dev/backend.hcl
+# edit backend.hcl: set bucket to the state_bucket_name output from step 1
 
+# 3. Standard terraform commands from here on — backend.hcl means init
+#    never prompts you again:
+cd environments/dev
+terraform init -backend-config=backend.hcl
 terraform plan
 terraform apply
 ```
 
-`terraform apply` in `environments/dev` stands up the VPC (2 public subnets across
-2 AZs, IGW, route table — no NAT). Nothing billable of consequence yet; the VPC
-itself is free. EKS lands in Phase 2.
+Nothing billable of consequence yet from this phase alone; the VPC itself is
+free. EKS lands in Phase 2.
 
 ## Phase 2 — EKS cluster + IRSA
 
@@ -125,8 +125,7 @@ What this creates:
 
 ```bash
 # point kubectl at the new cluster
-$(terraform output -raw configure_kubectl 2>/dev/null) || \
-  aws eks update-kubeconfig --name platform-pulse-dev --region us-east-1
+aws eks update-kubeconfig --name platform-pulse-dev --region us-east-1
 
 kubectl get nodes    # should show your one t3.small, Ready
 ```
