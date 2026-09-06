@@ -19,3 +19,9 @@ variable "monthly_budget_usd" {
   type        = number
   default     = 5
 }
+
+variable "aws_profile" {
+  description = "Optional named AWS CLI/SSO profile. Leave unset to use the default credential chain (env vars, default profile, SSO session already logged in)."
+  type        = string
+  default     = null
+}

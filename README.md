@@ -28,8 +28,8 @@ via IRSA (no static AWS keys anywhere in the cluster).
 bootstrap/          One-time: remote state bucket + AWS Budget alert (local state)
 environments/dev/   Root module for the dev environment (S3 backend, calls modules/)
 modules/vpc/        VPC, public subnets only, no NAT
-modules/eks/        EKS cluster + managed node group        [Phase 2]
-modules/irsa/       IAM Roles for Service Accounts           [Phase 2/6]
+modules/eks/        EKS cluster + managed node group
+modules/irsa/       IAM Roles for Service Accounts (generic, reusable)
 atlantis/            Local Atlantis (Docker + ngrok) config   [Phase 3]
 scripts/             Helper + teardown scripts
 ```
@@ -42,9 +42,9 @@ Two sibling repos complete the project:
 
 | Phase | What | Status |
 |---|---|---|
-| 0 | AWS/GitHub setup, budget alert | this session |
-| 1 | Terraform backend + VPC | this session |
-| 2 | EKS cluster + IRSA | next |
+| 0 | AWS/GitHub setup, budget alert | done |
+| 1 | Terraform backend + VPC | done |
+| 2 | EKS cluster + IRSA | this session |
 | 3 | Atlantis (local, PR automation, locking) | — |
 | 4 | GitHub Actions CI (OIDC, build, push) | — |
 | 5 | Helm chart for the app | — |
@@ -95,11 +95,59 @@ terraform apply
 2 AZs, IGW, route table — no NAT). Nothing billable of consequence yet; the VPC
 itself is free. EKS lands in Phase 2.
 
-### Tearing down Phase 1 only
+## Phase 2 — EKS cluster + IRSA
+
+Same `environments/dev` directory — this phase adds to the plan you already
+applied, it doesn't replace it.
 
 ```bash
-cd environments/dev && terraform destroy
+cd environments/dev
+terraform plan   # review: EKS cluster, 1 spot node, DynamoDB table, IRSA role
+terraform apply  # takes ~10-15 min — EKS control plane provisioning is slow
 ```
 
-Leave `bootstrap/` (the state bucket + budget alert) up for the life of the whole
-project — you'll keep using it through Phase 8.
+What this creates:
+- **EKS cluster** (`aws_eks_cluster`), Kubernetes 1.35, public endpoint, API-based
+  access management (no `aws-auth` ConfigMap editing — access is granted via
+  `aws_eks_access_entry`, and the identity you `apply` with is always included
+  automatically so you can't lock yourself out)
+- **One spot `t3.small` managed node group** — cheapest reasonable compute; spot
+  can be reclaimed, fine for a POC, not for anything you can't tolerate losing
+- **OIDC provider** on the cluster, the prerequisite for IRSA
+- **`modules/irsa`** — a generic, reusable "IAM role assumable only by one specific
+  Kubernetes service account" module. Trust policy is scoped by namespace + SA
+  name, not "any pod in the cluster"
+- **DynamoDB table** (`<cluster_name>-hits`, on-demand billing) — the hit counter
+  Platform Pulse will read/write
+- **One IRSA role**, `app_irsa`, whose inline policy allows exactly
+  `dynamodb:GetItem` / `dynamodb:UpdateItem` on exactly that one table's ARN —
+  nothing broader. This is the concrete "no static AWS keys in the pod" piece.
+
+```bash
+# point kubectl at the new cluster
+$(terraform output -raw configure_kubectl 2>/dev/null) || \
+  aws eks update-kubeconfig --name platform-pulse-dev --region us-east-1
+
+kubectl get nodes    # should show your one t3.small, Ready
+```
+
+### Cost reality check for this phase
+
+The EKS control plane starts billing ($0.10/hr) the moment `apply` finishes, and
+keeps billing until `destroy`. The spot node adds a few cents/hr on top. **Don't
+leave this running between sessions** — see below.
+
+### Tearing down
+
+```bash
+./scripts/destroy-all.sh
+```
+
+Destroys everything in `environments/dev` (cluster, node group, VPC, DynamoDB,
+IRSA role) with a confirmation prompt. Leaves `bootstrap/` (the state bucket +
+budget alert) standing — that's deliberate, keep it up for the life of the whole
+project through Phase 8.
+
+To tear down Phase 1's VPC only (before Phase 2 existed), the equivalent was
+`terraform destroy` directly — now that EKS depends on the VPC, always destroy
+through `environments/dev` as a whole.
