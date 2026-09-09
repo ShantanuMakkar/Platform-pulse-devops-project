@@ -73,7 +73,7 @@ module "github_actions_ecr_push" {
 
   role_name         = "${var.cluster_name}-gha-ecr-push"
   oidc_provider_arn = aws_iam_openid_connect_provider.github_actions.arn
-  github_repo       = "ShantanuMakkar/platform-app"
+  github_repo       = "ShantanuMakkar/Platform-pulse-app-project"
 
   inline_policy_json = jsonencode({
     Version = "2012-10-17"
