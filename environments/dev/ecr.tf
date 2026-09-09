@@ -12,7 +12,7 @@ resource "aws_ecr_lifecycle_policy" "platform_pulse" {
   policy = jsonencode({
     rules = [{
       rulePriority = 1
-      description  = "Keep only the last 10 images — plenty for a POC, keeps storage (and the 500MB free-tier allotment) from creeping."
+      description  = "Keep only the last 10 images —  plenty for a POC, keeps storage (and the 500MB free-tier allotment) from creeping."
       selection = {
         tagStatus   = "any"
         countType   = "imageCountMoreThan"
