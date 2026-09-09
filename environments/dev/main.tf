@@ -45,7 +45,7 @@ resource "aws_dynamodb_table" "hits" {
 module "app_irsa" {
   source = "../../modules/irsa"
 
-  role_name             = "${var.cluster_name}-app-irsa"
+  role_name             = "${var.cluster_name}-app-irsa" 
   oidc_provider_arn      = module.eks.oidc_provider_arn
   oidc_issuer_url        = module.eks.oidc_issuer_url
   namespace              = "platform-pulse"
@@ -61,5 +61,40 @@ module "app_irsa" {
       ]
       Resource = aws_dynamodb_table.hits.arn
     }]
+  })
+}
+
+
+# --- CI: GitHub Actions can push to ECR, nothing more --------------------
+# Scoped to platform-app's main branch only (see modules/github-actions-role).
+
+module "github_actions_ecr_push" {
+  source = "../../modules/github-actions-role"
+
+  role_name         = "${var.cluster_name}-gha-ecr-push"
+  oidc_provider_arn = aws_iam_openid_connect_provider.github_actions.arn
+  github_repo       = "ShantanuMakkar/platform-app"
+
+  inline_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:BatchGetImage",
+        ]
+        Resource = aws_ecr_repository.platform_pulse.arn
+      },
+    ]
   })
 }

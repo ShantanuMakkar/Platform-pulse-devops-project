@@ -27,3 +27,11 @@ output "app_irsa_role_arn" {
   description = "Annotate the app's Kubernetes service account with eks.amazonaws.com/role-arn = this value (done for you by the Helm chart in Phase 5)."
   value       = module.app_irsa.role_arn
 }
+
+output "ecr_repository_url" {
+  value = aws_ecr_repository.platform_pulse.repository_url
+}
+
+output "github_actions_role_arn" {
+  value = module.github_actions_ecr_push.role_arn
+}
