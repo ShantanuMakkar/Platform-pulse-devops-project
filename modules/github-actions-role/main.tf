@@ -20,7 +20,10 @@ data "aws_iam_policy_document" "trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [for ref in var.allowed_refs : "repo:${var.github_repo}:${ref}"]
+      values = concat(
+        [for ref in var.allowed_refs : "repo:${var.github_repo}:${ref}"],
+        var.extra_subs
+      )
     }
   }
 }

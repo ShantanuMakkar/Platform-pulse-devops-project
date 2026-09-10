@@ -22,3 +22,9 @@ variable "inline_policy_json" {
   type    = string
   default = null
 }
+
+variable "extra_subs" {
+  description = "Additional raw OIDC sub claim patterns to trust, beyond the ones built from github_repo + allowed_refs. GitHub issues an immutable id-based sub (owner@id/repo@id) for renamed repos/orgs alongside the name-based one — add that here."
+  type        = list(string)
+  default     = []
+}
